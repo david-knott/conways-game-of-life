@@ -1,5 +1,9 @@
 # conways-game-of-life
 
+## TODO
+
+Implement grid, set cols and cells, set cell colour.
+
 ## Project setup
 ```
 npm install
