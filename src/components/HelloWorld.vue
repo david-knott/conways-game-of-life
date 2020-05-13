@@ -7,6 +7,8 @@
             height="420px"
             style="background: #fff; margin:20px"
         ></canvas>
+
+        <button v-on:click.stop="next()">Next</button>
         <button v-show="!started" v-on:click.stop="started = true">
             Start
         </button>
@@ -57,29 +59,47 @@
 import { Component, Prop, Vue } from "vue-property-decorator";
 
 interface Renderer {
-    render(grid: Grid | Life): void;
+    renderGrid(grid: Grid): void;
 }
 
 class DefaultRenderer implements Renderer {
     constructor(private context: CanvasRenderingContext2D) {}
 
-    render(grid: Grid): void {
+    renderGrid(grid: Grid): void {
         // Box width
         const bw = 400;
         // Box height
         const bh = 400;
         // Padding
         const p = 10;
-        for (let x = 0; x <= bw; x += 10) {
+        const incW = 400 / grid.getRows();
+        const incH = 400 / grid.getCols();
+        this.context.clearRect(0, 0, 400, 400);
+        for (let x = 0; x <= bw; x += incW) {
             this.context.moveTo(0.5 + x + p, p);
             this.context.lineTo(0.5 + x + p, bh + p);
         }
-        for (let x = 0; x <= bh; x += 10) {
+        for (let x = 0; x <= bh; x += incH) {
             this.context.moveTo(p, 0.5 + x + p);
             this.context.lineTo(bw + p, 0.5 + x + p);
         }
         this.context.strokeStyle = "black";
         this.context.stroke();
+
+        const lives = grid.getLives();
+        for (let i = 0; i < lives.length; i++) {
+            for (let j = 0; j < lives[i].length; j++) {
+                const life = lives[i][j];
+                if (life) {
+                    this.context.fillRect(
+                        i * incW + p,
+                        j * incH + p,
+                        incW,
+                        incH
+                    );
+                }
+            }
+        }
     }
 }
 
@@ -96,30 +116,46 @@ enum Direction {
 
 class Life {
     constructor(private colour: number) {}
-
-    render(renderer: Renderer) {
-        renderer.render(this);
-    }
 }
 
 class Neighbours {
     private north: Life;
+    private northEast: Life;
+    private northWest: Life;
     private south: Life;
+    private southEast: Life;
+    private southWest: Life;
     private east: Life;
     private west: Life;
     constructor(grid: Grid, row: number, col: number) {
         this.north = grid.getLives()[grid.getWrappedRow(row + 1)][col];
+        this.northEast = grid.getLives()[grid.getWrappedRow(row + 1)][
+            grid.getWrappedRow(col + 1)
+        ];
+        this.northWest = grid.getLives()[grid.getWrappedRow(row + 1)][
+            grid.getWrappedRow(col - 1)
+        ];
         this.south = grid.getLives()[grid.getWrappedRow(row - 1)][col];
+        this.southEast = grid.getLives()[grid.getWrappedRow(row - 1)][
+            grid.getWrappedRow(col + 1)
+        ];
+        this.southWest = grid.getLives()[grid.getWrappedRow(row - 1)][
+            grid.getWrappedRow(col - 1)
+        ];
         this.west = grid.getLives()[row][grid.getWrappedCol(col - 1)];
         this.east = grid.getLives()[row][grid.getWrappedCol(col + 1)];
     }
-    
+
     live(): number {
         let c = 0;
-        if(this.north != null) c++;
-        if(this.south != null) c++;
-        if(this.east != null) c++;
-        if(this.west != null) c++;
+        if (this.north != null) c++;
+        if (this.northEast != null) c++;
+        if (this.northWest != null) c++;
+        if (this.south != null) c++;
+        if (this.southEast != null) c++;
+        if (this.southWest != null) c++;
+        if (this.east != null) c++;
+        if (this.west != null) c++;
         return c;
     }
 }
@@ -135,6 +171,14 @@ class Grid {
                 this.lives[r][c] = null;
             }
         }
+    }
+
+    getRows(): number {
+        return this.rows;
+    }
+
+    getCols(): number {
+        return this.cols;
     }
 
     getWrappedRow(row: number): number {
@@ -170,6 +214,7 @@ class Grid {
             throw new Error(
                 "Cannot add to col greater that total defined cols"
             );
+        console.log("add " + row + "," + col);
         this.lives[row][col] = life;
     }
 
@@ -182,6 +227,7 @@ class Grid {
             throw new Error(
                 "Cannot add to col greater that total defined cols"
             );
+        console.log("delete " + row + "," + col);
         this.lives[row][col] = null;
     }
 
@@ -190,12 +236,7 @@ class Grid {
     }
 
     render(renderer: Renderer) {
-        renderer.render(this);
-        for (let i = 0; i < this.lives.length; i++) {
-            for (let j = 0; j < this.lives[i].length; j++) {
-                //       renderer.render(this.lives[i][j]);
-            }
-        }
+        renderer.renderGrid(this);
     }
 
     update(updater: Updater) {
@@ -204,46 +245,58 @@ class Grid {
 }
 
 class Updater {
+    private deleteQ: Array<any> = [];
+    private addQ: Array<any> = [];
+
     update(grid: Grid) {
         const lives = grid.getLives();
         for (let i = 0; i < lives.length; i++) {
             for (let j = 0; j < lives[i].length; j++) {
                 if (lives[i][j] != null) {
                     if (this.hasLessThanTwoNeighbours(i, j, grid)) {
-                        grid.delete(i, j);
-                        console.log('deete 1');
-                    }
-                    if (this.hasMoreThanThreeNeighbours(i, j, grid)) {
-                        grid.delete(i, j);
-                        console.log('deete 2');
+                        this.deleteQ.push([i, j]);
+                    } else if( this.hasTwoOrThreeNeighbours(i, j, grid)) {
+                        //live on..
+                        console.log('live on');
+                    } else if (this.hasMoreThanThreeNeighbours(i, j, grid)) {
+                        this.deleteQ.push([i, j]);
+                    } else {
+                        this.deleteQ.push([i, j]);
                     }
                 } else {
                     if (this.hasThreeNeighbours(i, j, grid)) {
-                        grid.add(new Life(1), i, j);
-                        console.log('add');
+                        this.addQ.push([i, j]);
                     }
                 }
             }
+        }
+        while (this.deleteQ.length > 0) {
+            const pos = this.deleteQ.pop();
+            grid.delete(pos[0], pos[1]);
+        }
+        while (this.addQ.length > 0) {
+            const pos = this.addQ.pop();
+            grid.add(new Life(1), pos[0], pos[1]);
         }
     }
 
     hasLessThanTwoNeighbours(i: number, j: number, grid: Grid) {
         const neighbours = grid.neighbours(i, j);
-        return (neighbours.live() < 2);
+        return neighbours.live() < 2;
     }
 
     hasTwoOrThreeNeighbours(i: number, j: number, grid: Grid) {
         const neighbours = grid.neighbours(i, j);
-        return (neighbours.live() === 2) || (neighbours.live() === 3);
+        return neighbours.live() === 2 || neighbours.live() === 3;
     }
 
     hasThreeNeighbours(i: number, j: number, grid: Grid) {
         const neighbours = grid.neighbours(i, j);
-        return (neighbours.live() === 3);
+        return neighbours.live() === 3;
     }
     hasMoreThanThreeNeighbours(i: number, j: number, grid: Grid) {
         const neighbours = grid.neighbours(i, j);
-        return (neighbours.live() > 3);
+        return neighbours.live() > 3;
     }
 }
 
@@ -253,29 +306,43 @@ export default class HelloWorld extends Vue {
     private context: any;
     private grid: Grid;
     private updater: Updater;
+    private renderer: any;
+    private slower = 1;
+
+    next() {
+        this.grid.update(this.updater);
+        this.grid.render(this.renderer);
+        console.log('next frame');
+    }
 
     constructor() {
         super();
         this.grid = new Grid(10, 10);
-     //   this.grid.add(new Life(1), 5, 5);
-        this.grid.add(new Life(1), 5, 4);
-        this.grid.add(new Life(1), 5, 6);
-        this.grid.add(new Life(1), 4, 5);
-        this.grid.add(new Life(1), 6, 5);
+      //  this.grid.add(new Life(1), 3, 3);
+      //  this.grid.add(new Life(1), 2, 1);
+      //  this.grid.add(new Life(1), 2, 3);
+        this.grid.add(new Life(1), 1, 2);
+        this.grid.add(new Life(1), 1, 3);
+        this.grid.add(new Life(1), 1, 4);
+        this.grid.add(new Life(1), 1, 5);
+        this.grid.add(new Life(1), 1, 6);
         this.updater = new Updater();
     }
 
     mounted() {
         const canvas = document.getElementById("canvas") as HTMLCanvasElement;
         this.context = canvas.getContext("2d");
-        this.grid.render(new DefaultRenderer(this.context));
-        this.draw();
+        this.renderer = new DefaultRenderer(this.context);
+        this.grid.render(this.renderer);
+     //           this.draw();
     }
 
     draw() {
-        window.requestAnimationFrame(this.draw);
-        //    this.grid.render(this.context);
-        this.grid.update(this.updater);
+        if (++this.slower % 100) {
+            this.grid.update(this.updater);
+            this.grid.render(this.renderer);
+            window.requestAnimationFrame(this.draw);
+        }
     }
 }
 </script>
