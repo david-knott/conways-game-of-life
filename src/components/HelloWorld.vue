@@ -9,10 +9,11 @@
         ></canvas>
 
         <button v-on:click.stop="next()">Next</button>
-        <button v-show="!started" v-on:click.stop="started = true">
+        <button v-show="!started" v-on:click.stop="start()">
             Start
         </button>
-        <button v-show="started" v-on:click.stop="started = false">Stop</button>
+        <button v-show="started" v-on:click.stop="stop()">Stop</button>
+        <input v-model="fps" type="number" placeholder="edit me" value="1" />
         <p>
             The universe of the Game of Life is an infinite, two-dimensional
             orthogonal grid of square cells, each of which is in one of two
@@ -74,18 +75,17 @@ class DefaultRenderer implements Renderer {
         const p = 10;
         const incW = 400 / grid.getRows();
         const incH = 400 / grid.getCols();
-        this.context.clearRect(0, 0, 400, 400);
+        this.context.clearRect(0, 0, bw + p, bh + p);
         for (let x = 0; x <= bw; x += incW) {
-            this.context.moveTo(0.5 + x + p, p);
-            this.context.lineTo(0.5 + x + p, bh + p);
+            this.context.moveTo(0.0 + x + p, p);
+            this.context.lineTo(0.0 + x + p, bh + p);
         }
         for (let x = 0; x <= bh; x += incH) {
-            this.context.moveTo(p, 0.5 + x + p);
-            this.context.lineTo(bw + p, 0.5 + x + p);
+            this.context.moveTo(p, 0 + x + p);
+            this.context.lineTo(bw + p, 0.0 + x + p);
         }
         this.context.strokeStyle = "black";
         this.context.stroke();
-
         const lives = grid.getLives();
         for (let i = 0; i < lives.length; i++) {
             for (let j = 0; j < lives[i].length; j++) {
@@ -101,17 +101,6 @@ class DefaultRenderer implements Renderer {
             }
         }
     }
-}
-
-enum Direction {
-    N,
-    S,
-    E,
-    W,
-    NE,
-    NW,
-    SE,
-    SW,
 }
 
 class Life {
@@ -214,7 +203,6 @@ class Grid {
             throw new Error(
                 "Cannot add to col greater that total defined cols"
             );
-        console.log("add " + row + "," + col);
         this.lives[row][col] = life;
     }
 
@@ -227,7 +215,6 @@ class Grid {
             throw new Error(
                 "Cannot add to col greater that total defined cols"
             );
-        console.log("delete " + row + "," + col);
         this.lives[row][col] = null;
     }
 
@@ -255,9 +242,8 @@ class Updater {
                 if (lives[i][j] != null) {
                     if (this.hasLessThanTwoNeighbours(i, j, grid)) {
                         this.deleteQ.push([i, j]);
-                    } else if( this.hasTwoOrThreeNeighbours(i, j, grid)) {
+                    } else if (this.hasTwoOrThreeNeighbours(i, j, grid)) {
                         //live on..
-                        console.log('live on');
                     } else if (this.hasMoreThanThreeNeighbours(i, j, grid)) {
                         this.deleteQ.push([i, j]);
                     } else {
@@ -303,27 +289,30 @@ class Updater {
 @Component
 export default class HelloWorld extends Vue {
     private started = true;
+    private fps = 1;
     private context: any;
     private grid: Grid;
     private updater: Updater;
     private renderer: any;
-    private slower = 1;
+    private animationFrame: any;
+    private timeoutHandler: any;
 
     next() {
         this.grid.update(this.updater);
         this.grid.render(this.renderer);
-        console.log('next frame');
     }
 
     constructor() {
         super();
-        this.grid = new Grid(10, 10);
-      //  this.grid.add(new Life(1), 3, 3);
-      //  this.grid.add(new Life(1), 2, 1);
-      //  this.grid.add(new Life(1), 2, 3);
+        this.grid = new Grid(30, 30);
+
+        this.grid.add(new Life(1), 3, 3);
+        this.grid.add(new Life(1), 2, 1);
+        //   this.grid.add(new Life(1), 2, 3);
         this.grid.add(new Life(1), 1, 2);
-        this.grid.add(new Life(1), 1, 3);
+        //   this.grid.add(new Life(1), 1, 3);
         this.grid.add(new Life(1), 1, 4);
+        this.grid.add(new Life(1), 1, 0);
         this.grid.add(new Life(1), 1, 5);
         this.grid.add(new Life(1), 1, 6);
         this.updater = new Updater();
@@ -334,15 +323,29 @@ export default class HelloWorld extends Vue {
         this.context = canvas.getContext("2d");
         this.renderer = new DefaultRenderer(this.context);
         this.grid.render(this.renderer);
-     //           this.draw();
+        this.draw();
+    }
+
+    stop() {
+        //cancelAnimationFrame(this.animationFrame);
+        this.started = false;
+    }
+
+    start() {
+        this.started = true;
+        this.draw();
     }
 
     draw() {
-        if (++this.slower % 100) {
+        if(!this.started) {
+            return;
+        }
+        setTimeout(() => {
             this.grid.update(this.updater);
             this.grid.render(this.renderer);
             window.requestAnimationFrame(this.draw);
-        }
+            return false;
+        }, 1000 / this.fps);
     }
 }
 </script>

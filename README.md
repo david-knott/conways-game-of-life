@@ -4,6 +4,8 @@
 
 Implement grid, set cols and cells, set cell colour.
 
+Check wrap function, I think there is a bug.
+
 ## Project setup
 ```
 npm install
