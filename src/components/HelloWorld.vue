@@ -106,8 +106,9 @@ class DefaultRenderer implements Renderer {
         this.context.stroke();
         const lives = grid.getLives();
         for (let i = 0; i < lives.length; i++) {
-            if(grid.isEmptyRow(i))
+            if(grid.isEmptyRow(i)){
                 continue;
+            }
             for (let j = 0; j < lives[i].length; j++) {
                 const life = lives[i][j];
                 if (life) {
@@ -177,7 +178,7 @@ class Grid {
         this.lives = Array(rows);
         this.rowState = Array(rows);
         for (let r = 0; r < rows; r++) {
-            this.rowState[r] = false;
+            this.rowState[r] = 0;
             this.lives[r] = Array(rows);
             for (let c = 0; c < cols; c++) {
                 this.lives[r][c] = null;
@@ -194,7 +195,7 @@ class Grid {
     }
 
     isEmptyRow(i: number): boolean {
-        return this.rowState[i] === false;
+        return this.rowState[i] === 0;
     }
 
     getWrappedRow(row: number): number {
@@ -231,7 +232,7 @@ class Grid {
                 "Cannot add to col greater that total defined cols"
             );
         this.lives[row][col] = life;
-        this.rowState[row] = true;
+        this.rowState[row] = this.rowState[row] + 1;
     }
 
     delete(row: number, col: number) {
@@ -243,7 +244,7 @@ class Grid {
             throw new Error(
                 "Cannot add to col greater that total defined cols"
             );
-        this.rowState[row] = false;
+        this.rowState[row] = this.rowState[row] - 1;
         this.lives[row][col] = null;
     }
 
@@ -349,7 +350,7 @@ export default class HelloWorld extends Vue {
 
     constructor() {
         super();
-        this.grid = new Grid(30, 30);
+        this.grid = new Grid(40, 40);
 
     //    this.grid.add(new Life(1), 3, 3);
      //   this.grid.add(new Life(1), 2, 1);

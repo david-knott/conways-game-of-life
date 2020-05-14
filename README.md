@@ -2,9 +2,7 @@
 
 ## TODO
 
-Implement grid, set cols and cells, set cell colour.
-
-Check wrap function, I think there is a bug.
+Allow user to add patterns to the grid.
 
 ## Project setup
 ```
