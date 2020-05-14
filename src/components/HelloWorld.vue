@@ -1,19 +1,25 @@
 <template>
     <div class="grid">
         <canvas
-            v-on:click.stop="setCell()"
+            v-on:click.stop="setCell"
             id="canvas"
-            width="420px"
-            height="420px"
+            width="620px"
+            height="620px"
             style="background: #fff; margin:20px"
         ></canvas>
-
-        <button v-on:click.stop="next()">Next</button>
-        <button v-show="!started" v-on:click.stop="start()">
-            Start
-        </button>
-        <button v-show="started" v-on:click.stop="stop()">Stop</button>
-        <input v-model="fps" type="number" placeholder="edit me" value="1" />
+        <div>
+            <button v-show="!started" v-on:click.stop="next()">Next</button>
+            <button v-show="!started" v-on:click.stop="start()">
+                Start
+            </button>
+            <button v-show="started" v-on:click.stop="stop()">Stop</button>
+            <input
+                v-model="fps"
+                type="number"
+                placeholder="edit me"
+                value="1"
+            />
+        </div>
         <p>
             The universe of the Game of Life is an infinite, two-dimensional
             orthogonal grid of square cells, each of which is in one of two
@@ -61,33 +67,47 @@ import { Component, Prop, Vue } from "vue-property-decorator";
 
 interface Renderer {
     renderGrid(grid: Grid): void;
+    addLife(grid: Grid, updater: Updater, x: number, y: number): void;
 }
 
 class DefaultRenderer implements Renderer {
-    constructor(private context: CanvasRenderingContext2D) {}
+
+    private p = 0;
+
+    constructor(private bw: number, private bh: number, private context: CanvasRenderingContext2D) {}
+
+    addLife(grid: Grid, updater: Updater, x: number, y: number): void {
+        const p = this.p;
+        const incW = this.bw / grid.getRows();
+        const incH = this.bh / grid.getCols();
+        const xpos = Math.floor((x - p) / incW);
+        const ypos = Math.floor((y - p) / incH);
+        if (grid.getLives()[xpos][ypos] == null) {
+            updater.add(xpos, ypos);
+        } else {
+            updater.remove(xpos, ypos);
+        }
+    }
 
     renderGrid(grid: Grid): void {
-        // Box width
-        const bw = 400;
-        // Box height
-        const bh = 400;
-        // Padding
-        const p = 10;
-        const incW = 400 / grid.getRows();
-        const incH = 400 / grid.getCols();
-        this.context.clearRect(0, 0, bw + p, bh + p);
-        for (let x = 0; x <= bw; x += incW) {
+        const p = this.p;
+        const incW = this.bw / grid.getRows();
+        const incH = this.bh / grid.getCols();
+        this.context.clearRect(0, 0, this.bw + p, this.bh + p);
+        for (let x = 0; x <= this.bw; x += incW) {
             this.context.moveTo(0.0 + x + p, p);
-            this.context.lineTo(0.0 + x + p, bh + p);
+            this.context.lineTo(0.0 + x + p, this.bh + p);
         }
-        for (let x = 0; x <= bh; x += incH) {
+        for (let x = 0; x <= this.bh; x += incH) {
             this.context.moveTo(p, 0 + x + p);
-            this.context.lineTo(bw + p, 0.0 + x + p);
+            this.context.lineTo(this.bw + p, 0.0 + x + p);
         }
         this.context.strokeStyle = "black";
         this.context.stroke();
         const lives = grid.getLives();
         for (let i = 0; i < lives.length; i++) {
+            if(grid.isEmptyRow(i))
+                continue;
             for (let j = 0; j < lives[i].length; j++) {
                 const life = lives[i][j];
                 if (life) {
@@ -151,10 +171,13 @@ class Neighbours {
 
 class Grid {
     private lives: any[][];
+    private rowState: any[];
 
     constructor(private rows: number, private cols: number) {
         this.lives = Array(rows);
+        this.rowState = Array(rows);
         for (let r = 0; r < rows; r++) {
+            this.rowState[r] = false;
             this.lives[r] = Array(rows);
             for (let c = 0; c < cols; c++) {
                 this.lives[r][c] = null;
@@ -168,6 +191,10 @@ class Grid {
 
     getCols(): number {
         return this.cols;
+    }
+
+    isEmptyRow(i: number): boolean {
+        return this.rowState[i] === false;
     }
 
     getWrappedRow(row: number): number {
@@ -204,6 +231,7 @@ class Grid {
                 "Cannot add to col greater that total defined cols"
             );
         this.lives[row][col] = life;
+        this.rowState[row] = true;
     }
 
     delete(row: number, col: number) {
@@ -215,6 +243,7 @@ class Grid {
             throw new Error(
                 "Cannot add to col greater that total defined cols"
             );
+        this.rowState[row] = false;
         this.lives[row][col] = null;
     }
 
@@ -226,8 +255,8 @@ class Grid {
         renderer.renderGrid(this);
     }
 
-    update(updater: Updater) {
-        updater.update(this);
+    update(updater: Updater, move: boolean) {
+        updater.update(this, move);
     }
 }
 
@@ -235,23 +264,35 @@ class Updater {
     private deleteQ: Array<any> = [];
     private addQ: Array<any> = [];
 
-    update(grid: Grid) {
+    add(i: number, j: number) {
+        this.addQ.push([i, j]);
+    }
+
+    remove(i: number, j: number) {
+        this.deleteQ.push([i, j]);
+    }
+
+    update(grid: Grid, move: boolean) {
         const lives = grid.getLives();
-        for (let i = 0; i < lives.length; i++) {
-            for (let j = 0; j < lives[i].length; j++) {
-                if (lives[i][j] != null) {
-                    if (this.hasLessThanTwoNeighbours(i, j, grid)) {
-                        this.deleteQ.push([i, j]);
-                    } else if (this.hasTwoOrThreeNeighbours(i, j, grid)) {
-                        //live on..
-                    } else if (this.hasMoreThanThreeNeighbours(i, j, grid)) {
-                        this.deleteQ.push([i, j]);
+        if (move) {
+            for (let i = 0; i < lives.length; i++) {
+                for (let j = 0; j < lives[i].length; j++) {
+                    if (lives[i][j] != null) {
+                        if (this.hasLessThanTwoNeighbours(i, j, grid)) {
+                            this.deleteQ.push([i, j]);
+                        } else if (this.hasTwoOrThreeNeighbours(i, j, grid)) {
+                            //live on..
+                        } else if (
+                            this.hasMoreThanThreeNeighbours(i, j, grid)
+                        ) {
+                            this.deleteQ.push([i, j]);
+                        } else {
+                            this.deleteQ.push([i, j]);
+                        }
                     } else {
-                        this.deleteQ.push([i, j]);
-                    }
-                } else {
-                    if (this.hasThreeNeighbours(i, j, grid)) {
-                        this.addQ.push([i, j]);
+                        if (this.hasThreeNeighbours(i, j, grid)) {
+                            this.addQ.push([i, j]);
+                        }
                     }
                 }
             }
@@ -286,10 +327,14 @@ class Updater {
     }
 }
 
+class Pattern {
+
+}
+
 @Component
 export default class HelloWorld extends Vue {
     private started = true;
-    private fps = 1;
+    private fps = 10;
     private context: any;
     private grid: Grid;
     private updater: Updater;
@@ -298,7 +343,7 @@ export default class HelloWorld extends Vue {
     private timeoutHandler: any;
 
     next() {
-        this.grid.update(this.updater);
+        this.grid.update(this.updater, true);
         this.grid.render(this.renderer);
     }
 
@@ -306,42 +351,65 @@ export default class HelloWorld extends Vue {
         super();
         this.grid = new Grid(30, 30);
 
-        this.grid.add(new Life(1), 3, 3);
-        this.grid.add(new Life(1), 2, 1);
+    //    this.grid.add(new Life(1), 3, 3);
+     //   this.grid.add(new Life(1), 2, 1);
         //   this.grid.add(new Life(1), 2, 3);
-        this.grid.add(new Life(1), 1, 2);
+     //   this.grid.add(new Life(1), 1, 2);
         //   this.grid.add(new Life(1), 1, 3);
-        this.grid.add(new Life(1), 1, 4);
-        this.grid.add(new Life(1), 1, 0);
-        this.grid.add(new Life(1), 1, 5);
-        this.grid.add(new Life(1), 1, 6);
+     //   this.grid.add(new Life(1), 1, 4);
+       // this.grid.add(new Life(1), 1, 0);
+       // this.grid.add(new Life(1), 1, 5);
+      //  this.grid.add(new Life(1), 1, 6);
+       this.grid.add(new Life(1), 5, 5);
+       this.grid.add(new Life(1), 5, 6);
+       this.grid.add(new Life(1), 5, 7);
+       this.grid.add(new Life(1), 6, 5);
+       this.grid.add(new Life(1), 7, 6);
+
         this.updater = new Updater();
     }
 
     mounted() {
         const canvas = document.getElementById("canvas") as HTMLCanvasElement;
         this.context = canvas.getContext("2d");
-        this.renderer = new DefaultRenderer(this.context);
+        this.renderer = new DefaultRenderer(canvas.width, canvas.height, this.context);
         this.grid.render(this.renderer);
         this.draw();
     }
 
     stop() {
-        //cancelAnimationFrame(this.animationFrame);
         this.started = false;
     }
 
     start() {
         this.started = true;
-        this.draw();
+    }
+
+    setCell(e: any) {
+        const canvas = document.getElementById("canvas") as HTMLCanvasElement;
+        let x;
+        let y;
+        if (e.pageX || e.pageY) {
+            x = e.pageX;
+            y = e.pageY;
+        } else {
+            x =
+                e.clientX +
+                document.body.scrollLeft +
+                document.documentElement.scrollLeft;
+            y =
+                e.clientY +
+                document.body.scrollTop +
+                document.documentElement.scrollTop;
+        }
+        x -= canvas.offsetLeft;
+        y -= canvas.offsetTop;
+        this.renderer.addLife(this.grid, this.updater, x, y);
     }
 
     draw() {
-        if(!this.started) {
-            return;
-        }
         setTimeout(() => {
-            this.grid.update(this.updater);
+            this.grid.update(this.updater, this.started);
             this.grid.render(this.renderer);
             window.requestAnimationFrame(this.draw);
             return false;
