@@ -64,6 +64,13 @@
 
 <script lang="ts">
 import { Component, Prop, Vue } from "vue-property-decorator";
+import { BootstrapVue, BootstrapVueIcons } from "bootstrap-vue";
+
+import "bootstrap/dist/css/bootstrap.css";
+import "bootstrap-vue/dist/bootstrap-vue.css";
+
+Vue.use(BootstrapVue);
+Vue.use(BootstrapVueIcons);
 
 interface Renderer {
     renderGrid(grid: Grid): void;
@@ -71,10 +78,13 @@ interface Renderer {
 }
 
 class DefaultRenderer implements Renderer {
-
     private p = 0;
 
-    constructor(private bw: number, private bh: number, private context: CanvasRenderingContext2D) {}
+    constructor(
+        private bw: number,
+        private bh: number,
+        private context: CanvasRenderingContext2D
+    ) {}
 
     addLife(grid: Grid, updater: Updater, x: number, y: number): void {
         const p = this.p;
@@ -96,17 +106,17 @@ class DefaultRenderer implements Renderer {
         this.context.clearRect(0, 0, this.bw + p, this.bh + p);
         for (let x = 0; x <= this.bw; x += incW) {
             this.context.moveTo(0.0 + x + p, p);
-            this.context.lineTo(0.0 + x + p, this.bh + p);
+            //       this.context.lineTo(0.0 + x + p, this.bh + p);
         }
         for (let x = 0; x <= this.bh; x += incH) {
             this.context.moveTo(p, 0 + x + p);
-            this.context.lineTo(this.bw + p, 0.0 + x + p);
+            //     this.context.lineTo(this.bw + p, 0.0 + x + p);
         }
         this.context.strokeStyle = "black";
         this.context.stroke();
         const lives = grid.getLives();
         for (let i = 0; i < lives.length; i++) {
-            if(grid.isEmptyRow(i)){
+            if (grid.isEmptyRow(i)) {
                 continue;
             }
             for (let j = 0; j < lives[i].length; j++) {
@@ -329,7 +339,18 @@ class Updater {
 }
 
 class Pattern {
+    constructor(private name: string, private cells: number[][]) {}
 
+    add(grid: Grid, left: number, top: number) {
+        for (let i = 0; i < this.cells.length; i++) {
+            for (let j = 0; j < this.cells[i].length; j++) {
+                const l = this.cells[i][j];
+                if (l) {
+                    grid.add(new Life(1), top + j, left + i);
+                }
+            }
+        }
+    }
 }
 
 @Component
@@ -342,6 +363,7 @@ export default class HelloWorld extends Vue {
     private renderer: any;
     private animationFrame: any;
     private timeoutHandler: any;
+    private patterns: Array<Pattern>;
 
     next() {
         this.grid.update(this.updater, true);
@@ -350,22 +372,80 @@ export default class HelloWorld extends Vue {
 
     constructor() {
         super();
-        this.grid = new Grid(40, 40);
+        this.grid = new Grid(60, 60);
+        this.patterns = [];
 
-    //    this.grid.add(new Life(1), 3, 3);
-     //   this.grid.add(new Life(1), 2, 1);
+        this.patterns.push(
+            new Pattern("block", [
+                [1, 1],
+                [1, 1],
+            ])
+        );
+        this.patterns.push(
+            new Pattern("beehive", [
+                [0, 1, 1, 0],
+                [1, 0, 0, 1],
+                [0, 1, 1, 0],
+            ])
+        );
+        this.patterns.push(
+            new Pattern("loaf", [
+                [0, 1, 1, 0],
+                [1, 0, 0, 1],
+                [0, 1, 0, 1],
+                [0, 0, 1, 0],
+            ])
+        );
+        this.patterns.push(
+            new Pattern("boat", [
+                [1, 1, 0, 0],
+                [1, 0, 1, 0],
+                [0, 1, 0, 0],
+            ])
+        );
+        this.patterns.push(
+            new Pattern("tub", [
+                [0, 1, 0],
+                [1, 0, 1],
+                [0, 1, 0],
+            ])
+        );
+        this.patterns.push(new Pattern("blinker", [[1, 1, 1]]));
+        this.patterns.push(
+            new Pattern("toad", [
+                [0, 1, 1, 1],
+                [1, 1, 1, 0],
+            ])
+        );
+        this.patterns.push(
+            new Pattern("toad", [
+                [0, 1, 1, 1],
+                [1, 1, 1, 0],
+            ])
+        );
+        this.patterns.push(
+            new Pattern("glider", [
+                [0, 1, 0],
+                [0, 0, 1],
+                [1, 1, 1],
+            ])
+        );
+
+
+        //    this.grid.add(new Life(1), 3, 3);
+        //   this.grid.add(new Life(1), 2, 1);
         //   this.grid.add(new Life(1), 2, 3);
-     //   this.grid.add(new Life(1), 1, 2);
+        //   this.grid.add(new Life(1), 1, 2);
         //   this.grid.add(new Life(1), 1, 3);
-     //   this.grid.add(new Life(1), 1, 4);
-       // this.grid.add(new Life(1), 1, 0);
-       // this.grid.add(new Life(1), 1, 5);
-      //  this.grid.add(new Life(1), 1, 6);
-       this.grid.add(new Life(1), 5, 5);
-       this.grid.add(new Life(1), 5, 6);
-       this.grid.add(new Life(1), 5, 7);
-       this.grid.add(new Life(1), 6, 5);
-       this.grid.add(new Life(1), 7, 6);
+        //   this.grid.add(new Life(1), 1, 4);
+        // this.grid.add(new Life(1), 1, 0);
+        // this.grid.add(new Life(1), 1, 5);
+        //  this.grid.add(new Life(1), 1, 6);
+        ///        this.grid.add(new Life(1), 5, 5);
+        //        this.grid.add(new Life(1), 5, 6);
+        //      this.grid.add(new Life(1), 5, 7);
+        //    this.grid.add(new Life(1), 6, 5);
+        //  this.grid.add(new Life(1), 7, 6);
 
         this.updater = new Updater();
     }
@@ -373,7 +453,16 @@ export default class HelloWorld extends Vue {
     mounted() {
         const canvas = document.getElementById("canvas") as HTMLCanvasElement;
         this.context = canvas.getContext("2d");
-        this.renderer = new DefaultRenderer(canvas.width, canvas.height, this.context);
+        this.renderer = new DefaultRenderer(
+            canvas.width,
+            canvas.height,
+            this.context
+        );
+        this.patterns[this.patterns.length - 1].add(this.grid, 15, 15);
+        this.patterns[this.patterns.length - 1].add(this.grid, 1, 1);
+        this.patterns[this.patterns.length - 1].add(this.grid, 4, 40);
+        this.patterns[this.patterns.length - 1].add(this.grid, 4, 10);
+        this.patterns[this.patterns.length - 2].add(this.grid, 4, 10);
         this.grid.render(this.renderer);
         this.draw();
     }
