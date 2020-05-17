@@ -1,8 +1,5 @@
 <template>
-    <div>
-        <h2>3d</h2>
-        <div class="scene" ref="scene" />
-    </div>
+    <div class="scene" ref="scene" />
 </template>
 
 <script lang="ts">
@@ -40,7 +37,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 
         el.appendChild(this.renderer.domElement);
 
-        const geometry = new THREE.TorusGeometry(10, 9, 16, 100);
+        const geometry = new THREE.TorusGeometry(5, 2, 8, 100);
         this.material = new THREE.MeshPhongMaterial({
             color: 0xffffaa,
             map: texture,
@@ -73,9 +70,7 @@ export default class Torus extends Vue {
         0x000000,
         0.9
     );
-
-    private directionalLight = new THREE.DirectionalLight(0xffffff, 0.9);
-
+    private directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
     private ambientLight = new THREE.AmbientLight(0xdc8874, 0.5);
 }
 </script>
@@ -84,6 +79,6 @@ export default class Torus extends Vue {
 <style scoped>
 .scene {
     width: 100%;
-    height: 500px;
+    height: 100%;
 }
 </style>
