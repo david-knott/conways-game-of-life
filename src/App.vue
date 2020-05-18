@@ -29,6 +29,7 @@
     <v-content>
       <Flat />
       <Torus v-show="false" />
+      <Patterns />
 
       <v-container class="fill-height" fluid>
         <v-row align="center" justify="center">
@@ -52,6 +53,7 @@
 <script lang="ts">
 import Vue from "vue";
 import Flat from "./components/Flat.vue";
+import Patterns from "./components/Patterns.vue";
 import Torus from "./components/Torus.vue";
 
 export default Vue.extend({
@@ -59,7 +61,8 @@ export default Vue.extend({
 
   components: {
     Flat,
-    Torus
+    Torus,
+    Patterns
   },
   props: {
     source: String
