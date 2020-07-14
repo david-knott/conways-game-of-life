@@ -2,7 +2,7 @@
 
 ## TODO
 
-Allow user to add patterns to the grid.
+Modify algorithm to use 2 arrays, one for current generation and one for next generation.
 
 ## Project setup
 ```

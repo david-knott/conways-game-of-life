@@ -3,8 +3,8 @@
     <canvas
       v-on:click.stop="setCell"
       id="canvas"
-      width="600px"
-      height="600px"
+      width="400px"
+      height="400px"
       style="background: #fff; margin:20px"
     ></canvas>
     <div>
@@ -18,6 +18,107 @@
 
 <script lang="ts">
 import { Component, Prop, Vue } from "vue-property-decorator";
+
+class Life {
+  constructor(private colour: number) {}
+}
+
+/**
+ * Computes the next generation.
+ */
+class Updater {
+  private deleteQ: Array<any> = [];
+  private addQ: Array<any> = [];
+
+  add(i: number, j: number) {
+    this.addQ.push([i, j]);
+  }
+
+  remove(i: number, j: number) {
+    this.deleteQ.push([i, j]);
+  }
+
+  update(grid: Grid, move: boolean) {
+    const currentGen = grid.getCurrentGen();
+    const nextGen = grid.getNextGen();
+    /*
+    Cant do this because we use nextGen to add items
+    into the grid.
+    for (let ii = 0; ii < nextGen.length; ii++) {
+      for (let jj = 0; jj < nextGen.length; jj++) {
+        nextGen[ii][jj] = null;
+      }
+    }*/
+    if (move) {
+      for (let i = 0; i < currentGen.length; i++) {
+        for (let j = 0; j < currentGen[i].length; j++) {
+          if (currentGen[i][j] != null) {
+            if (this.hasLessThanTwoNeighbours(i, j, grid)) {
+              this.deleteQ.push([i, j]);
+            } else if (this.hasTwoOrThreeNeighbours(i, j, grid)) {
+              this.addQ.push([i, j]);
+            } else if (this.hasMoreThanThreeNeighbours(i, j, grid)) {
+              this.deleteQ.push([i, j]);
+            } else {
+              this.deleteQ.push([i, j]);
+            }
+          } else {
+            if (this.hasThreeNeighbours(i, j, grid)) {
+              this.addQ.push([i, j]);
+            } else {
+              //Cant do this because new items are not present
+              //in the current generation.
+              //this.deleteQ.push([i, j]);
+            }
+          }
+        }
+      }
+    }
+    while (this.deleteQ.length > 0) {
+      const pos = this.deleteQ.pop();
+      grid.delete(pos[0], pos[1]);
+    }
+    while (this.addQ.length > 0) {
+      const pos = this.addQ.pop();
+      grid.add(new Life(1), pos[0], pos[1]);
+    }
+  }
+
+  hasLessThanTwoNeighbours(i: number, j: number, grid: Grid) {
+    const neighbours = grid.neighbours(i, j);
+    return neighbours.live() < 2;
+  }
+
+  hasTwoOrThreeNeighbours(i: number, j: number, grid: Grid) {
+    const neighbours = grid.neighbours(i, j);
+    return neighbours.live() === 2 || neighbours.live() === 3;
+  }
+
+  hasThreeNeighbours(i: number, j: number, grid: Grid) {
+    const neighbours = grid.neighbours(i, j);
+    return neighbours.live() === 3;
+  }
+
+  hasMoreThanThreeNeighbours(i: number, j: number, grid: Grid) {
+    const neighbours = grid.neighbours(i, j);
+    return neighbours.live() > 3;
+  }
+}
+
+class Pattern {
+  constructor(private name: string, private cells: number[][]) {}
+
+  add(grid: Grid, left: number, top: number) {
+    for (let i = 0; i < this.cells.length; i++) {
+      for (let j = 0; j < this.cells[i].length; j++) {
+        const l = this.cells[i][j];
+        if (l) {
+          grid.add(new Life(1), left + i, top + j);
+        }
+      }
+    }
+  }
+}
 
 interface Renderer {
   renderGrid(grid: Grid): void;
@@ -43,7 +144,7 @@ class DefaultRenderer implements Renderer {
     const incH = this.bh / grid.getCols();
     const xpos = Math.floor(x / incW);
     const ypos = Math.floor(y / incH);
-    if (grid.getLives()[xpos][ypos] == null) {
+    if (grid.getCurrentGen()[xpos][ypos] == null) {
       updater.add(xpos, ypos);
     } else {
       updater.remove(xpos, ypos);
@@ -80,11 +181,8 @@ class DefaultRenderer implements Renderer {
     }
     this.context.strokeStyle = "grey";
     this.context.stroke();
-    const lives = grid.getLives();
+    const lives = grid.getCurrentGen();
     for (let i = 0; i < lives.length; i++) {
-      if (grid.isEmptyRow(i)) {
-        continue;
-      }
       for (let j = 0; j < lives[i].length; j++) {
         const life = lives[i][j];
         if (life) {
@@ -94,10 +192,6 @@ class DefaultRenderer implements Renderer {
       }
     }
   }
-}
-
-class Life {
-  constructor(private colour: number) {}
 }
 
 class Neighbours {
@@ -110,22 +204,22 @@ class Neighbours {
   private east: Life;
   private west: Life;
   constructor(grid: Grid, row: number, col: number) {
-    this.north = grid.getLives()[grid.getWrappedRow(row + 1)][col];
-    this.northEast = grid.getLives()[grid.getWrappedRow(row + 1)][
+    this.north = grid.getCurrentGen()[grid.getWrappedRow(row + 1)][col];
+    this.northEast = grid.getCurrentGen()[grid.getWrappedRow(row + 1)][
       grid.getWrappedRow(col + 1)
     ];
-    this.northWest = grid.getLives()[grid.getWrappedRow(row + 1)][
+    this.northWest = grid.getCurrentGen()[grid.getWrappedRow(row + 1)][
       grid.getWrappedRow(col - 1)
     ];
-    this.south = grid.getLives()[grid.getWrappedRow(row - 1)][col];
-    this.southEast = grid.getLives()[grid.getWrappedRow(row - 1)][
+    this.south = grid.getCurrentGen()[grid.getWrappedRow(row - 1)][col];
+    this.southEast = grid.getCurrentGen()[grid.getWrappedRow(row - 1)][
       grid.getWrappedRow(col + 1)
     ];
-    this.southWest = grid.getLives()[grid.getWrappedRow(row - 1)][
+    this.southWest = grid.getCurrentGen()[grid.getWrappedRow(row - 1)][
       grid.getWrappedRow(col - 1)
     ];
-    this.west = grid.getLives()[row][grid.getWrappedCol(col - 1)];
-    this.east = grid.getLives()[row][grid.getWrappedCol(col + 1)];
+    this.west = grid.getCurrentGen()[row][grid.getWrappedCol(col - 1)];
+    this.east = grid.getCurrentGen()[row][grid.getWrappedCol(col + 1)];
   }
 
   live(): number {
@@ -143,19 +237,30 @@ class Neighbours {
 }
 
 class Grid {
-  private lives: any[][];
-  private rowState: any[];
+  private array1: any[][];
+  private array2: any[][];
+  private arr1Updates: boolean;
 
   constructor(private rows: number, private cols: number) {
-    this.lives = Array(rows);
-    this.rowState = Array(rows);
+    this.array1 = Array(rows);
+    this.array2 = Array(rows);
+    this.arr1Updates = false;
     for (let r = 0; r < rows; r++) {
-      this.rowState[r] = 0;
-      this.lives[r] = Array(rows);
+      this.array1[r] = Array(rows);
+      this.array2[r] = Array(rows);
       for (let c = 0; c < cols; c++) {
-        this.lives[r][c] = null;
+        this.array1[r][c] = null;
+        this.array2[r][c] = null;
       }
     }
+  }
+
+  getNextGen(): any[][] {
+    return this.arr1Updates ? this.array1 : this.array2;
+  }
+
+  getCurrentGen(): any[][] {
+    return !this.arr1Updates ? this.array1 : this.array2;
   }
 
   getRows(): number {
@@ -164,10 +269,6 @@ class Grid {
 
   getCols(): number {
     return this.cols;
-  }
-
-  isEmptyRow(i: number): boolean {
-    return this.rowState[i] === 0;
   }
 
   getWrappedRow(row: number): number {
@@ -190,17 +291,13 @@ class Grid {
     return col;
   }
 
-  getLives() {
-    return this.lives;
-  }
-
   add(life: Life, row: number, col: number) {
     if (row >= this.rows)
       throw new Error("Cannot add to row greater that total defined rows");
     if (col >= this.cols)
       throw new Error("Cannot add to col greater that total defined cols");
-    this.lives[row][col] = life;
-    this.rowState[row] = this.rowState[row] + 1;
+    const nextGen = this.getNextGen();
+    nextGen[row][col] = life;
   }
 
   delete(row: number, col: number) {
@@ -208,107 +305,30 @@ class Grid {
       throw new Error("Cannot add to row greater that total defined rows");
     if (col >= this.cols)
       throw new Error("Cannot add to col greater that total defined cols");
-    this.rowState[row] = this.rowState[row] - 1;
-    this.lives[row][col] = null;
+    const nextGen = this.getNextGen();
+    nextGen[row][col] = null;
   }
 
   neighbours(row: number, col: number): Neighbours {
     return new Neighbours(this, row, col);
   }
 
-  render(renderer: Renderer) {
+  /**
+   * Changes state in the update array, renders the render array
+   * Sets a boolean flag that specifies which array is update and
+   * which is render.
+   */
+  updateAndRender(renderer: Renderer, updater: Updater, move: boolean) {
     renderer.renderGrid(this);
-  }
-
-  update(updater: Updater, move: boolean) {
     updater.update(this, move);
-  }
-}
-
-class Updater {
-  private deleteQ: Array<any> = [];
-  private addQ: Array<any> = [];
-
-  add(i: number, j: number) {
-    this.addQ.push([i, j]);
-  }
-
-  remove(i: number, j: number) {
-    this.deleteQ.push([i, j]);
-  }
-
-  update(grid: Grid, move: boolean) {
-    const lives = grid.getLives();
-    if (move) {
-      for (let i = 0; i < lives.length; i++) {
-        for (let j = 0; j < lives[i].length; j++) {
-          if (lives[i][j] != null) {
-            if (this.hasLessThanTwoNeighbours(i, j, grid)) {
-              this.deleteQ.push([i, j]);
-            } else if (this.hasTwoOrThreeNeighbours(i, j, grid)) {
-              //live on..
-            } else if (this.hasMoreThanThreeNeighbours(i, j, grid)) {
-              this.deleteQ.push([i, j]);
-            } else {
-              this.deleteQ.push([i, j]);
-            }
-          } else {
-            if (this.hasThreeNeighbours(i, j, grid)) {
-              this.addQ.push([i, j]);
-            }
-          }
-        }
-      }
-    }
-    while (this.deleteQ.length > 0) {
-      const pos = this.deleteQ.pop();
-      grid.delete(pos[0], pos[1]);
-    }
-    while (this.addQ.length > 0) {
-      const pos = this.addQ.pop();
-      grid.add(new Life(1), pos[0], pos[1]);
-    }
-  }
-
-  hasLessThanTwoNeighbours(i: number, j: number, grid: Grid) {
-    const neighbours = grid.neighbours(i, j);
-    return neighbours.live() < 2;
-  }
-
-  hasTwoOrThreeNeighbours(i: number, j: number, grid: Grid) {
-    const neighbours = grid.neighbours(i, j);
-    return neighbours.live() === 2 || neighbours.live() === 3;
-  }
-
-  hasThreeNeighbours(i: number, j: number, grid: Grid) {
-    const neighbours = grid.neighbours(i, j);
-    return neighbours.live() === 3;
-  }
-  hasMoreThanThreeNeighbours(i: number, j: number, grid: Grid) {
-    const neighbours = grid.neighbours(i, j);
-    return neighbours.live() > 3;
-  }
-}
-
-class Pattern {
-  constructor(private name: string, private cells: number[][]) {}
-
-  add(grid: Grid, left: number, top: number) {
-    for (let i = 0; i < this.cells.length; i++) {
-      for (let j = 0; j < this.cells[i].length; j++) {
-        const l = this.cells[i][j];
-        if (l) {
-          grid.add(new Life(1), left + i, top + j);
-        }
-      }
-    }
+    this.arr1Updates = !this.arr1Updates;
   }
 }
 
 @Component
 export default class Flat extends Vue {
   private started = true;
-  private fps = 10;
+  private fps = 1;
   private context: any;
   private grid: Grid;
   private updater: Updater;
@@ -318,15 +338,13 @@ export default class Flat extends Vue {
   private patterns: Array<Pattern>;
 
   next() {
-    this.grid.update(this.updater, true);
-    this.grid.render(this.renderer);
+    this.grid.updateAndRender(this.renderer, this.updater, true);
   }
 
   constructor() {
     super();
-    this.grid = new Grid(50, 50);
+    this.grid = new Grid(10, 10);
     this.patterns = [];
-
     this.patterns.push(
       new Pattern("block", [
         [1, 1],
@@ -393,12 +411,13 @@ export default class Flat extends Vue {
       canvas.height,
       this.context
     );
-    this.patterns[this.patterns.length - 1].add(this.grid, 15, 15);
+    /*
+    this.patterns[this.patterns.length - 1].add(this.grid, 15, 15);*/
     this.patterns[this.patterns.length - 1].add(this.grid, 1, 1);
-    this.patterns[this.patterns.length - 1].add(this.grid, 4, 40);
+    /*    this.patterns[this.patterns.length - 1].add(this.grid, 4, 40);
     this.patterns[this.patterns.length - 1].add(this.grid, 4, 10);
-    this.patterns[this.patterns.length - 2].add(this.grid, 4, 10);
-    this.grid.render(this.renderer);
+    this.patterns[this.patterns.length - 2].add(this.grid, 4, 10);*/
+    this.grid.updateAndRender(this.renderer, this.updater, this.started);
     this.draw();
   }
 
@@ -415,6 +434,10 @@ export default class Flat extends Vue {
     const rect = e.target.getBoundingClientRect();
     const x = e.clientX - rect.left; //x position within the element.
     const y = e.clientY - rect.top; //y position within the element.
+    //why add to renderer ??
+    //patterns should be added to the grid.
+    //need to translate the x and y into
+    //coordinates for the grid.
     this.renderer.addPattern(
       this.grid,
       this.updater,
@@ -426,8 +449,7 @@ export default class Flat extends Vue {
 
   draw() {
     setTimeout(() => {
-      this.grid.update(this.updater, this.started);
-      this.grid.render(this.renderer);
+      this.grid.updateAndRender(this.renderer, this.updater, this.started);
       window.requestAnimationFrame(this.draw);
       return false;
     }, 1000 / this.fps);
