@@ -33,33 +33,28 @@ class Updater {
     this.addQ.push([i, j]);
   }
 
-  update(grid: Grid, move: boolean) {
+  update(grid: Grid, i: number, j: number) {
     const currentGen = grid.getCurrentGen();
     const nextGen = grid.getNextGen();
-    if (move) {
-      for (let i = 0; i < currentGen.length; i++) {
-        for (let j = 0; j < currentGen[i].length; j++) {
-          if (currentGen[i][j] != null) {
-            if (this.hasLessThanTwoNeighbours(i, j, grid)) {
-              nextGen[i][j] = null;
-            } else if (this.hasTwoOrThreeNeighbours(i, j, grid)) {
-              nextGen[i][j] = new Life(1);
-            } else if (this.hasMoreThanThreeNeighbours(i, j, grid)) {
-              nextGen[i][j] = null;
-            } else {
-              nextGen[i][j] = null;
-            }
-          } else {
-            if (this.hasThreeNeighbours(i, j, grid)) {
-              nextGen[i][j] = new Life(1);
-            } else {
-              nextGen[i][j] = null;
-            }
-          }
-        }
+    if (currentGen[i][j] != null) {
+      if (this.hasLessThanTwoNeighbours(i, j, grid)) {
+        nextGen[i][j] = null;
+      } else if (this.hasTwoOrThreeNeighbours(i, j, grid)) {
+        nextGen[i][j] = new Life(1);
+      } else if (this.hasMoreThanThreeNeighbours(i, j, grid)) {
+        nextGen[i][j] = null;
+      } else {
+        nextGen[i][j] = null;
+      }
+    } else {
+      if (this.hasThreeNeighbours(i, j, grid)) {
+        nextGen[i][j] = new Life(1);
+      } else {
+        nextGen[i][j] = null;
       }
     }
   }
+
 
   hasLessThanTwoNeighbours(i: number, j: number, grid: Grid) {
     const neighbours = grid.neighbours(i, j);
@@ -98,7 +93,8 @@ class Pattern {
 }
 
 interface Renderer {
-  renderGrid(grid: Grid): void;
+  renderStart(grid: Grid): void;
+  render(grid: Grid, i: number, j: number): void;
   addLife(grid: Grid, updater: Updater, x: number, y: number): void;
   addPattern(
     grid: Grid,
@@ -140,7 +136,7 @@ class DefaultRenderer implements Renderer {
     pattern.add(grid, xpos, ypos);
   }
 
-  renderGrid(grid: Grid): void {
+  renderStart(grid: Grid) {
     const incW = this.bw / grid.getRows();
     const incH = this.bh / grid.getCols();
     this.context.fillStyle = "#FFFFFF";
@@ -156,17 +152,19 @@ class DefaultRenderer implements Renderer {
     }
     this.context.strokeStyle = "grey";
     this.context.stroke();
+  }
+
+  render(grid: Grid, i: number, j: number): void {
+    const incW = this.bw / grid.getRows();
+    const incH = this.bh / grid.getCols();
     const lives = grid.getCurrentGen();
-    for (let i = 0; i < lives.length; i++) {
-      for (let j = 0; j < lives[i].length; j++) {
-        const life = lives[i][j];
-        if (life) {
-          this.context.fillStyle = "#ff0000";
-          this.context.fillRect(i * incW, j * incH, incW, incH);
-        }
-      }
+    const life = lives[i][j];
+    if (life) {
+      this.context.fillStyle = "#ff0000";
+      this.context.fillRect(i * incW, j * incH, incW, incH);
     }
   }
+
 }
 
 class Neighbours {
@@ -294,9 +292,16 @@ class Grid {
    * which is render.
    */
   updateAndRender(renderer: Renderer, updater: Updater, move: boolean) {
-    renderer.renderGrid(this);
-    updater.update(this, move);
+    const gen = this.getCurrentGen();
+    const next = this.getNextGen();
     if(move) {
+      renderer.renderStart(this);
+      for (let i = 0; i < gen.length; ++i) {
+        for (let j = 0; j < gen[i].length; ++j) {
+          renderer.render(this, i, j);
+          updater.update(this, i, j);
+        }
+      }
       this.arr1Updates = !this.arr1Updates;
     }
   }
