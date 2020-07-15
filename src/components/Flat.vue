@@ -27,60 +27,37 @@ class Life {
  * Computes the next generation.
  */
 class Updater {
-  private deleteQ: Array<any> = [];
   private addQ: Array<any> = [];
 
   add(i: number, j: number) {
     this.addQ.push([i, j]);
   }
 
-  remove(i: number, j: number) {
-    this.deleteQ.push([i, j]);
-  }
-
   update(grid: Grid, move: boolean) {
     const currentGen = grid.getCurrentGen();
     const nextGen = grid.getNextGen();
-    /*
-    Cant do this because we use nextGen to add items
-    into the grid.
-    for (let ii = 0; ii < nextGen.length; ii++) {
-      for (let jj = 0; jj < nextGen.length; jj++) {
-        nextGen[ii][jj] = null;
-      }
-    }*/
     if (move) {
       for (let i = 0; i < currentGen.length; i++) {
         for (let j = 0; j < currentGen[i].length; j++) {
           if (currentGen[i][j] != null) {
             if (this.hasLessThanTwoNeighbours(i, j, grid)) {
-              this.deleteQ.push([i, j]);
+              nextGen[i][j] = null;
             } else if (this.hasTwoOrThreeNeighbours(i, j, grid)) {
-              this.addQ.push([i, j]);
+              nextGen[i][j] = new Life(1);
             } else if (this.hasMoreThanThreeNeighbours(i, j, grid)) {
-              this.deleteQ.push([i, j]);
+              nextGen[i][j] = null;
             } else {
-              this.deleteQ.push([i, j]);
+              nextGen[i][j] = null;
             }
           } else {
             if (this.hasThreeNeighbours(i, j, grid)) {
-              this.addQ.push([i, j]);
+              nextGen[i][j] = new Life(1);
             } else {
-              //Cant do this because new items are not present
-              //in the current generation.
-              //this.deleteQ.push([i, j]);
+              nextGen[i][j] = null;
             }
           }
         }
       }
-    }
-    while (this.deleteQ.length > 0) {
-      const pos = this.deleteQ.pop();
-      grid.delete(pos[0], pos[1]);
-    }
-    while (this.addQ.length > 0) {
-      const pos = this.addQ.pop();
-      grid.add(new Life(1), pos[0], pos[1]);
     }
   }
 
@@ -146,8 +123,6 @@ class DefaultRenderer implements Renderer {
     const ypos = Math.floor(y / incH);
     if (grid.getCurrentGen()[xpos][ypos] == null) {
       updater.add(xpos, ypos);
-    } else {
-      updater.remove(xpos, ypos);
     }
   }
 
@@ -296,8 +271,8 @@ class Grid {
       throw new Error("Cannot add to row greater that total defined rows");
     if (col >= this.cols)
       throw new Error("Cannot add to col greater that total defined cols");
-    const nextGen = this.getNextGen();
-    nextGen[row][col] = life;
+    const gen = this.getCurrentGen();
+    gen[row][col] = life;
   }
 
   delete(row: number, col: number) {
@@ -305,8 +280,8 @@ class Grid {
       throw new Error("Cannot add to row greater that total defined rows");
     if (col >= this.cols)
       throw new Error("Cannot add to col greater that total defined cols");
-    const nextGen = this.getNextGen();
-    nextGen[row][col] = null;
+    const gen = this.getCurrentGen();
+    gen[row][col] = null;
   }
 
   neighbours(row: number, col: number): Neighbours {
@@ -321,7 +296,9 @@ class Grid {
   updateAndRender(renderer: Renderer, updater: Updater, move: boolean) {
     renderer.renderGrid(this);
     updater.update(this, move);
-    this.arr1Updates = !this.arr1Updates;
+    if(move) {
+      this.arr1Updates = !this.arr1Updates;
+    }
   }
 }
 
