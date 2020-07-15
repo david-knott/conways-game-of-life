@@ -291,7 +291,7 @@ class Grid {
    * Sets a boolean flag that specifies which array is update and
    * which is render.
    */
-  updateAndRender(renderer: Renderer, updater: Updater, move: boolean) {
+  renderAndUpdate(renderer: Renderer, updater: Updater, move: boolean) {
     const gen = this.getCurrentGen();
     const next = this.getNextGen();
     if(move) {
@@ -320,7 +320,7 @@ export default class Flat extends Vue {
   private patterns: Array<Pattern>;
 
   next() {
-    this.grid.updateAndRender(this.renderer, this.updater, true);
+    this.grid.renderAndUpdate(this.renderer, this.updater, true);
   }
 
   constructor() {
@@ -399,7 +399,7 @@ export default class Flat extends Vue {
     /*    this.patterns[this.patterns.length - 1].add(this.grid, 4, 40);
     this.patterns[this.patterns.length - 1].add(this.grid, 4, 10);
     this.patterns[this.patterns.length - 2].add(this.grid, 4, 10);*/
-    this.grid.updateAndRender(this.renderer, this.updater, this.started);
+    this.grid.renderAndUpdate(this.renderer, this.updater, this.started);
     this.draw();
   }
 
@@ -431,7 +431,7 @@ export default class Flat extends Vue {
 
   draw() {
     setTimeout(() => {
-      this.grid.updateAndRender(this.renderer, this.updater, this.started);
+      this.grid.renderAndUpdate(this.renderer, this.updater, this.started);
       window.requestAnimationFrame(this.draw);
       return false;
     }, 1000 / this.fps);
