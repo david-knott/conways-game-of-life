@@ -12,6 +12,14 @@
       <v-btn v-show="!started" v-on:click.stop="start()">Start</v-btn>
       <v-btn v-show="started" v-on:click.stop="stop()">Stop</v-btn>
       <v-text-field v-model="fps" type="number" placeholder="edit me" value="1" />
+       <v-select
+          :items="patterns"
+          item-text="name"
+          item-value="name"
+          label="Select pattern"
+          v-model="pattern"
+          solo
+        ></v-select>
     </div>
   </div>
 </template>
@@ -78,7 +86,7 @@ class Updater {
 }
 
 class Pattern {
-  constructor(private name: string, private cells: number[][]) {}
+  constructor(public name: string, private cells: number[][]) {}
 
   add(grid: Grid, left: number, top: number) {
     for (let i = 0; i < this.cells.length; i++) {
@@ -282,6 +290,10 @@ class Grid {
     gen[row][col] = null;
   }
 
+  /**
+   * Creates a Neighbours instance that provides information on
+   * a cells neighbours.
+   */
   neighbours(row: number, col: number): Neighbours {
     return new Neighbours(this, row, col);
   }
@@ -294,23 +306,26 @@ class Grid {
   renderAndUpdate(renderer: Renderer, updater: Updater, move: boolean) {
     const gen = this.getCurrentGen();
     const next = this.getNextGen();
-    if(move) {
       renderer.renderStart(this);
       for (let i = 0; i < gen.length; ++i) {
         for (let j = 0; j < gen[i].length; ++j) {
           renderer.render(this, i, j);
-          updater.update(this, i, j);
+          if(move)
+            updater.update(this, i, j);
         }
       }
+      if(move)
       this.arr1Updates = !this.arr1Updates;
     }
-  }
 }
 
 @Component
 export default class Flat extends Vue {
   private started = true;
-  private fps = 1;
+  private fps = 30;
+  private pattern: string;
+  private rows = 30;
+  private cols = 30;
   private context: any;
   private grid: Grid;
   private updater: Updater;
@@ -325,7 +340,7 @@ export default class Flat extends Vue {
 
   constructor() {
     super();
-    this.grid = new Grid(10, 10);
+    this.grid = new Grid(this.rows, this.cols);
     this.patterns = [];
     this.patterns.push(
       new Pattern("block", [
@@ -382,6 +397,7 @@ export default class Flat extends Vue {
         [1, 1, 1]
       ])
     );
+    this.pattern = this.patterns[0].name;
     this.updater = new Updater();
   }
 
@@ -411,6 +427,10 @@ export default class Flat extends Vue {
     this.started = true;
   }
 
+  getSelectedPattern(): Pattern {
+    return this.patterns.filter(x => x.name == this.pattern)[0];
+  }
+
   setCell(e: any) {
     this.started = false;
     const rect = e.target.getBoundingClientRect();
@@ -425,7 +445,7 @@ export default class Flat extends Vue {
       this.updater,
       x,
       y,
-      this.patterns[this.patterns.length - 1]
+      this.getSelectedPattern()
     );
   }
 
